@@ -6,7 +6,7 @@ from scipy.ndimage.interpolation import shift
 from scipy.spatial import distance
 
 
-def calculate_busier(Q_start, A, B, Q_end, step=0.05):
+def calculate_bezier(Q_start, A, B, Q_end, step=0.05):
     points = []
     for t in np.arange(0, 1 + step, step):
         points.append(
@@ -53,13 +53,13 @@ def calculate_control_points(node_points):
 
 
 def draw_spline(surface, Q_start, A, B, Q_end, step=0.05):
-    result_points = calculate_busier(Q_start, A, B, Q_end,step=step)
+    result_points = calculate_bezier(Q_start, A, B, Q_end,step=step)
     for j in range(0, len(result_points) - 1):
         pygame.draw.line(surface=surface, color=(255, 255, 255), start_pos=result_points[j],
                          end_pos=result_points[j + 1])
 
 
-def draw_busier_curve(surface, points, controls, step=0.05):
+def draw_bezier_curve(surface, points, controls, step=0.05):
     for i in range(1, len(points)):
         draw_spline(screen, points[i - 1], controls[2 * i - 2], controls[2 * i - 1], points[i], step=step)
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
                 pygame.quit()
                 sys.exit()
 
-        draw_busier_curve(screen, Points, Controls)
+        draw_bezier_curve(screen, Points, Controls)
 
         for P in Points:
             pygame.draw.circle(surface=screen, center=P, color=(255, 255, 255), radius=2)
