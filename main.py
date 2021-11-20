@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pygame.locals import *
 from scipy.ndimage.interpolation import shift
+from scipy.spatial import distance
 
 
 def calculate_busier(Q_start, A, B, Q_end, step=0.1):
@@ -13,11 +14,15 @@ def calculate_busier(Q_start, A, B, Q_end, step=0.1):
 
     return points
 
-
 def calculate_control_points(node_points):
-    shape_size = 2 * len(node_points) - 2
-    matrix = np.zeros(shape=(shape_size, shape_size), dtype=int)
-    right_col = np.zeros(shape=(shape_size, 2))
+    n = 2 * len(node_points) - 2
+
+    a = []  # 1 / length between points
+    for i in range(0, len(node_points) - 1):
+        a.append(1 / distance.euclidean(node_points[i], node_points[i + 1]))
+
+    matrix = np.zeros(shape=(n, n))
+    right_col = np.zeros(shape=(n, 2))
 
     matrix[0][0] = 2
     matrix[0][1] = -1
@@ -26,44 +31,31 @@ def calculate_control_points(node_points):
     matrix[-1][-1] = 2
     matrix[-1][-2] = -1
     right_col[-1] = np.array(node_points[-1])
+    for i in range(1, len(node_points) - 1):
+        row = np.zeros_like(np.zeros(n))
+        row[2*i - 2] = a[i-1] ** 2
+        row[2*i - 1] = -2 * (a[i-1] ** 2)
+        row[2*i] = 2 * (a[i] ** 2)
+        row[2*i + 1] = - (a[i] ** 2)
+        right_col[2*i - 1] = ((a[i] ** 2) * node_points[i]) - ((a[i-1] ** 2) * node_points[i-1])
+        matrix[2*i - 1] = row
 
-    first_diff_template = np.zeros(shape_size, dtype=int)
-    first_diff_template[1] = 1
-    first_diff_template[2] = 1
+        row = np.zeros_like(np.zeros(n))
+        row[2 * i - 1] = a[i-1]
+        row[2 * i] = a[i]
 
-    second_diff_template = np.zeros(shape_size, dtype=int)
-    second_diff_template[0] = 1
-    second_diff_template[1] = -2
-    second_diff_template[2] = 2
-    second_diff_template[3] = -1
+        matrix[2*i] = row
+        right_col[2*i] = node_points[i] * (a[i-1] + a[i])
 
-    index = 1
-    for i in range(0, int((shape_size - 2) // 2)):
-        matrix[index] = shift(first_diff_template, i * 2, cval=0)
-        right_col[index] = 2 * np.array(node_points)[index]
-        index += 1
+    print(matrix)
+    print(right_col)
 
-    for i in range(0, int((shape_size - 2) // 2)):
-        matrix[index] = shift(second_diff_template, i * 2, cval=0)
-        right_col[index] = np.array([0, 0])
-        index += 1
     result = np.linalg.solve(matrix, right_col)
     return result
-
-    # matrix[-1] = shift(np.array([-1, 2], shape_size - 2))
-    # print(matrix)
-    # for i in range(shape_size):
-
-    # print(matrix)
-    # for i in range(1, 2 * len(node_points) - 2):
-
-
-# matrix = np.array()
 
 
 if __name__ == '__main__':
     scale = 0.5
-
     df = pd.read_csv("coordinates_of_a_serious_toad.csv", header=None, delimiter=';')
     Points = scale * df.to_numpy()
     Controls = calculate_control_points(Points)
@@ -78,16 +70,16 @@ if __name__ == '__main__':
                 sys.exit()
 
         for i in range(1, len(Points)):
-            result_points = calculate_busier(Points[i-1], Controls[2*i-2], Controls[2*i-1], Points[i], step=0.05)
-            result_points = np.array(result_points).astype('int')
-            for j in range(0, len(result_points)-1):
-                pygame.draw.line(surface=screen, color=(255, 255, 255), start_pos=result_points[j], end_pos=result_points[j+1])
-
-        # for j in range(0, len(result_points)):
-        #     pygame.draw.line(surface=screen, color=(255, 255, 255), start_pos=result_points[j-1], end_pos=result_points[j])
+            result_points = calculate_busier(Points[i - 1], Controls[2 * i - 2], Controls[2 * i - 1], Points[i],
+                                             step=0.05)
+            result_points = np.array(result_points)
+            for j in range(0, len(result_points) - 1):
+                pygame.draw.line(surface=screen, color=(255, 255, 255), start_pos=result_points[j],
+                                 end_pos=result_points[j + 1])
 
         for P in Points:
             pygame.draw.circle(surface=screen, center=P, color=(255, 255, 255), radius=2)
+
         for P in Controls:
             pygame.draw.circle(surface=screen, center=P, color=(0, 255, 255), radius=2)
 
